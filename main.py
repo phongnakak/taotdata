@@ -46,14 +46,15 @@ def keep_alive():
     t.start()
 
 # ==========================================
-# 3. KHOI TAO BOT (DA SUA CHUAN 100%)
+# 3. KHOI TAO BOT (CHỐNG NHẦM LẪN 100%)
 # ==========================================
-# API ID la SO (36305655)
-# API HASH la CHU ('58c19...')
-# Thu tu bat buoc: Ten -> ID -> Hash
-bot = TelegramClient('bot_main_cloud', 36305655, '58c19740ea1f5941e5847c0b3944f41d')
+# Dung cach nay (api_id=..., api_hash=...) thi khong bao gio bi loi nua
+bot = TelegramClient(
+    'bot_main_cloud', 
+    api_id=36305655,                       # SO
+    api_hash='58c19740ea1f5941e5847c0b3944f41d' # CHU (Bat buoc phai co dau nhay)
+)
 
-# Thay Token cua ban vao day
 bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU'
 
 if not os.path.exists('sessions'): os.makedirs('sessions')
@@ -65,8 +66,8 @@ logging.basicConfig(level=logging.INFO)
 # 4. HAM CONVERT
 # ==========================================
 # Khai bao lai de dung cho ham convert
-api_id_fix = 36305655
-api_hash_fix = '58c19740ea1f5941e5847c0b3944f41d'
+MY_API_ID = 36305655
+MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
 async def convert_process(event, downloaded_path):
     msg = await event.reply("⏳ **Đang xử lý theo thuật toán Opentele...**")
@@ -86,8 +87,13 @@ async def convert_process(event, downloaded_path):
 
     client_convert = None
     try:
-        # Dung ID va Hash da fix cung
-        client_convert = OpenteleClient(path_to_load, api_id_fix, api_hash_fix, proxy=PROXY_CONF)
+        # Gan the ten cho Opentele luon
+        client_convert = OpenteleClient(
+            path_to_load, 
+            api_id=MY_API_ID, 
+            api_hash=MY_API_HASH, 
+            proxy=PROXY_CONF
+        )
         await client_convert.connect()
         
         if not await client_convert.is_user_authorized():
