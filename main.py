@@ -46,13 +46,13 @@ def keep_alive():
     t.start()
 
 # ==========================================
-# 3. KHOI TAO BOT (CHỐNG NHẦM LẪN 100%)
+# 3. KHOI TAO BOT
 # ==========================================
 # Dung cach nay (api_id=..., api_hash=...) thi khong bao gio bi loi nua
 bot = TelegramClient(
     'bot_main_cloud', 
-    api_id=36305655,                       # SO
-    api_hash='58c19740ea1f5941e5847c0b3944f41d' # CHU (Bat buoc phai co dau nhay)
+    api_id=36305655,                       
+    api_hash='58c19740ea1f5941e5847c0b3944f41d' 
 )
 
 bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU'
@@ -63,9 +63,8 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT
+# 4. HAM CONVERT (DA SUA LOI GUI FILE)
 # ==========================================
-# Khai bao lai de dung cho ham convert
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
@@ -111,10 +110,14 @@ async def convert_process(event, downloaded_path):
         final_zip_file = zip_output_path + ".zip"
         
         await msg.edit("⬆️ **Đang tải lên...**")
-        await event.respond(
-            file=final_zip_file,
+        
+        # 👇👇👇 DA SUA DOAN NAY: DUNG send_file thay vi respond 👇👇👇
+        await bot.send_file(
+            event.chat_id,
+            final_zip_file,
             caption=f"✅ **Convert thành công!**\n📂 File: `{session_name}.zip`\n(Opentele Core)"
         )
+        
         await msg.delete()
 
     except Exception as e:
