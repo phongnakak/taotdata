@@ -6,37 +6,39 @@ import random
 import asyncio
 import logging
 import shutil
-import builtins
-import getpass
+import socks
 import sys
-import socks  # Bat buoc phai co pysocks
-from telethon import TelegramClient, events
 
+# --- IMPORT THU VIEN CUA BAN ---
+from telethon import TelegramClient, events
 try:
     from opentele.td import TDesktop
+    from opentele.tl import TelegramClient as OpenteleClient
+    from opentele.api import UseCurrentSession
 except ImportError:
     print("❌ Lỗi: Chưa cài thư viện opentele")
 
 # ==========================================
 # 1. CẤU HÌNH PROXY (HTTP - Tunproxy)
 # ==========================================
+# Bat buoc phai co Proxy de khong chet Session
 PROXY_CONF = (
-    socks.HTTP,              # Chay HTTP
-    'Snvt9.tunproxy.com',    # Host
-    25425,                   # Port
-    True,                    # rdns
-    'nJmiIM',                # Username
-    'vBNpmtH8'               # Password
+    socks.HTTP,
+    'Snvt9.tunproxy.com',
+    25425,
+    True,
+    'nJmiIM',
+    'vBNpmtH8'
 )
 
 # ==========================================
-# 2. WEB SERVER
+# 2. WEB SERVER (Giu Bot Online)
 # ==========================================
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot Convert TData Online (Proxy Enabled)"
+    return "Bot Convert TData (Opentele Integration)"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -46,94 +48,122 @@ def keep_alive():
     t.start()
 
 # ==========================================
-# 3. CẤU HÌNH BOT
+# 3. KHOI TAO BOT
 # ==========================================
 api_id = 36305655
 api_hash = '58c19740ea1f5941e5847c0b3944f41d'
+bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU' # <--- TOKEN CUA BAN
 
-# Token ban da dien san:
-bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU' 
-
+# Tao thu muc tam
 if not os.path.exists('sessions'): os.makedirs('sessions')
-if not os.path.exists('temp_tdata'): os.makedirs('temp_tdata')
+if not os.path.exists('temp_process'): os.makedirs('temp_process')
 
-logging.basicConfig(level=logging.ERROR)
-
-# Bot chinh chay mang Render
-bot = TelegramClient('bot_convert_cloud', api_id, api_hash)
+logging.basicConfig(level=logging.INFO)
+bot = TelegramClient('bot_main_cloud', api_id, api_hash)
 
 # ==========================================
-# 4. HÀM XỬ LÝ CONVERT (CÓ PROXY)
+# 4. HAM CONVERT (LOGIC TU CODE CUA BAN)
 # ==========================================
-async def process_convert(event, session_path):
-    msg = await event.reply("⏳ **Đang kết nối Proxy & Convert...**")
+async def convert_process(event, downloaded_path):
+    msg = await event.reply("⏳ **Đang xử lý theo thuật toán Opentele...**")
     
-    original_name = event.file.name.replace('.session', '')
-    tdata_folder = f"temp_tdata/{original_name}"
-    zip_output_path = f"temp_tdata/{original_name}" 
-    final_zip_file = f"temp_tdata/{original_name}.zip"
+    # Lay ten file (VD: 849xxx)
+    filename_w_ext = os.path.basename(downloaded_path)
+    session_name = filename_w_ext.replace('.session', '')
+    
+    # 1. Tao cau truc thu muc rieng biet (Giong code ban gui)
+    # root_folder: temp_process/849xxx_timestamp
+    timestamp = int(time.time())
+    root_folder = f"temp_process/{session_name}_{timestamp}"
+    os.makedirs(root_folder, exist_ok=True)
+    
+    # 2. Copy file session vao trong root_folder (Bat buoc theo logic cua opentele)
+    session_path_in_folder = os.path.join(root_folder, filename_w_ext)
+    shutil.copy2(downloaded_path, session_path_in_folder)
+    
+    # Duong dan cho Opentele load (khong can duoi .session)
+    path_to_load = os.path.join(root_folder, session_name)
+    
+    # Duong dan dich cho TData (Ben trong root_folder)
+    tdata_folder_path = os.path.join(root_folder, "tdata")
 
     client_convert = None
     try:
-        # --- KET NOI QUA PROXY ---
-        client_convert = TelegramClient(session_path, api_id, api_hash, proxy=PROXY_CONF)
+        # --- KHOI TAO OPENTELE CLIENT ---
+        # QUAN TRONG: Minh them PROXY vao day de bao ve session
+        client_convert = OpenteleClient(path_to_load, api_id, api_hash, proxy=PROXY_CONF)
         
-        # Khoi tao TData
-        tdesk = TDesktop(tdata_folder)
+        await client_convert.connect()
         
-        async with client_convert:
-            # Login vao session qua Proxy
-            await tdesk.LoadFromClient(client_convert)
-            # Luu ra TData
-            tdesk.SaveTData(tdata_folder)
-        
-        # Nen file
-        await msg.edit("📦 **Đang nén file Zip...**")
-        shutil.make_archive(zip_output_path, 'zip', tdata_folder)
+        if not await client_convert.is_user_authorized():
+            await msg.edit(f"☠️ **SESSION DIE:** File `{session_name}` không đăng nhập được.")
+            await client_convert.disconnect()
+            return
 
-        # Gui file
+        # --- CHUYEN DOI SANG TDESKTOP ---
+        # Logic: Load session -> ToTDesktop -> SaveTData
+        tdesk = await client_convert.ToTDesktop(flag=UseCurrentSession)
+        
+        # Luu TData vao thu muc con "tdata"
+        tdesk.SaveTData(tdata_folder_path)
+        
+        await client_convert.disconnect() # Ngat ket noi sau khi convert xong
+        
+        # --- NEN FILE ZIP ---
+        await msg.edit("📦 **Đang nén TData...**")
+        
+        # Zip toan bo thu muc tdata
+        # Output: temp_process/849xxx.zip
+        zip_output_path = f"temp_process/{session_name}_{timestamp}"
+        shutil.make_archive(zip_output_path, 'zip', tdata_folder_path)
+        final_zip_file = zip_output_path + ".zip"
+        
+        # --- GUI FILE ---
         await msg.edit("⬆️ **Đang tải lên...**")
         await event.respond(
             file=final_zip_file,
-            caption=f"✅ **Convert thành công!**\n(Đã fake IP Việt Nam an toàn)\n📂 File: `{original_name}.zip`"
+            caption=f"✅ **Convert thành công!**\n📂 File: `{session_name}.zip`\n(Opentele Core)"
         )
         await msg.delete()
 
     except Exception as e:
         if "SOCKS" in str(e) or "Connection" in str(e):
-             await msg.edit(f"❌ **Lỗi Proxy:** Kết nối thất bại.\nCheck lại Tunproxy.")
+             await msg.edit(f"❌ **Lỗi Proxy:** Kết nối thất bại.\nTunproxy có thể đang chậm.")
         else:
              await msg.edit(f"❌ **Lỗi Convert:**\n`{str(e)}`")
     
     finally:
-        # Don rac
+        # --- DON DEP RAC ---
         try:
-            if os.path.exists(tdata_folder): shutil.rmtree(tdata_folder)
-            if os.path.exists(final_zip_file): os.remove(final_zip_file)
-            if client_convert: await client_convert.disconnect()
+            if os.path.exists(root_folder): shutil.rmtree(root_folder) # Xoa folder tdata tam
+            if os.path.exists(final_zip_file): os.remove(final_zip_file) # Xoa file zip
+            if os.path.exists(downloaded_path): os.remove(downloaded_path) # Xoa file session tai ve
         except: pass
 
 # ==========================================
-# 5. SỰ KIỆN NHẬN FILE
+# 5. SU KIEN NHAN FILE
 # ==========================================
 @bot.on(events.NewMessage)
 async def handler(event):
     if event.file and event.file.name.endswith('.session'):
-        random_id = int(time.time()) + random.randint(1, 99999)
-        temp_path = f"sessions/convert_{random_id}.session"
+        # Luu file tam ra ngoai
+        temp_path = f"sessions/{event.file.name}"
+        
+        msg_wait = await event.reply("⬇️ **Đang tải file về Server...**")
         try:
             await bot.download_media(event.message, temp_path)
-            await process_convert(event, temp_path)
-        finally:
-            if os.path.exists(temp_path): os.remove(temp_path)
-            if os.path.exists(temp_path + '-journal'): os.remove(temp_path + '-journal')
+            await msg_wait.delete()
+            # Goi ham convert
+            await convert_process(event, temp_path)
+        except Exception as e:
+            print(e)
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond("🛠 **Bot Convert TData (VN Proxy)**\n\nGửi file `.session` vào đây, tôi sẽ dùng Proxy Việt Nam để convert an toàn.")
+    await event.respond("🛠 **Bot Convert TData (Opentele Core)**\n\nGửi file `.session` vào đây, tôi sẽ dùng thuật toán Opentele + Proxy để convert an toàn.")
 
 if __name__ == '__main__':
     keep_alive()
-    print("--- BOT CONVERT STARTED ---")
+    print("--- BOT STARTED ---")
     bot.start(bot_token=bot_token)
     bot.run_until_disconnected()
