@@ -9,7 +9,8 @@ import socks
 import sys
 
 # Import Telethon
-from telethon import TelegramClient, events, types
+from telethon import TelegramClient, events
+from telethon.errors import PasswordHashInvalidError
 
 # Import Opentele
 try:
@@ -20,7 +21,7 @@ except ImportError:
     print("❌ Lỗi: Chưa cài thư viện opentele")
 
 # ==========================================
-# 1. CẤU HÌNH PROXY (BẮT BUỘC)
+# 1. CẤU HÌNH (PROXY & PASS 2FA)
 # ==========================================
 PROXY_CONF = (
     socks.HTTP,
@@ -31,6 +32,8 @@ PROXY_CONF = (
     'vBNpmtH8'
 )
 
+DEFAULT_2FA_PASS = "12341234" # Mat khau 2FA ban muon cai
+
 # ==========================================
 # 2. WEB SERVER
 # ==========================================
@@ -38,7 +41,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot Convert TData V4 (Clean Name)"
+    return "Bot Convert TData V5 (Auto 2FA)"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -64,40 +67,41 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT (SẠCH TÊN FILE)
+# 4. HAM CONVERT + SET 2FA
 # ==========================================
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
 async def convert_process(event, downloaded_path):
-    msg = await event.reply("⏳ **Đang xử lý...**")
+    msg = await event.reply("⏳ **Đang xử lý & Cài 2FA...**")
     
-    # Lay ten thuan tuy (VD: +84123)
     filename_w_ext = os.path.basename(downloaded_path) 
     session_name = filename_w_ext.replace('.session', '') 
     
-    # 1. Tao thu muc tam de xu ly (Dung timestamp o day de khong loi server, nhung nguoi dung khong thay cai nay)
+    # Tao thu muc lam viec
     timestamp = int(time.time())
     work_dir = f"temp_process/work_{session_name}_{timestamp}"
     os.makedirs(work_dir, exist_ok=True)
     
-    # 2. Tao thu muc CHINH (Folder nay se la folder nguoi dung nhan duoc)
-    # Ten folder nay se la: +84123 (Khong co timestamp)
+    # Tao thu muc CHINH (Ket qua)
     container_folder = os.path.join(work_dir, session_name)
     os.makedirs(container_folder, exist_ok=True)
 
-    # 3. Copy file session vao
+    # Copy session vao
     shutil.copy2(downloaded_path, os.path.join(container_folder, filename_w_ext))
     
-    # 4. Tao thu muc tdata
+    # Tao folder tdata
     tdata_folder_path = os.path.join(container_folder, "tdata")
-    
-    # Duong dan load session
     path_to_load = os.path.join(container_folder, session_name)
+    
+    # Tao file TXT ghi pass
+    txt_pass_path = os.path.join(container_folder, "pass_2fa.txt")
 
     client_convert = None
+    log_2fa = ""
+    
     try:
-        # KET NOI PROXY
+        # KET NOI
         client_convert = OpenteleClient(
             path_to_load, 
             api_id=MY_API_ID, 
@@ -111,33 +115,44 @@ async def convert_process(event, downloaded_path):
             await client_convert.disconnect()
             return
 
-        # CONVERT
+        # --- BAT DAU DOAN CODE CAI 2FA ---
+        try:
+            # Thu cai mat khau moi
+            await client_convert.edit_2fa(new_password=DEFAULT_2FA_PASS)
+            log_2fa = f"✅ Đã bật 2FA: {DEFAULT_2FA_PASS}"
+            
+            # Ghi file txt neu cai thanh cong
+            with open(txt_pass_path, "w", encoding="utf-8") as f:
+                f.write(f"Account: {session_name}\nPass 2FA: {DEFAULT_2FA_PASS}\nStatus: Active")
+                
+        except Exception as e_2fa:
+            # Neu da co pass hoac loi thi bo qua
+            if "Password" in str(e_2fa):
+                log_2fa = "⚠️ Nick đã có 2FA từ trước (Không đổi)."
+                with open(txt_pass_path, "w", encoding="utf-8") as f:
+                    f.write(f"Account: {session_name}\nPass 2FA: Đã có sẵn (Không phải {DEFAULT_2FA_PASS})")
+            else:
+                log_2fa = f"⚠️ Lỗi set 2FA: {str(e_2fa)}"
+        # ---------------------------------
+
+        # CONVERT TDATA
         tdesk = await client_convert.ToTDesktop(flag=UseCurrentSession)
         tdesk.SaveTData(tdata_folder_path)
         await client_convert.disconnect()
         
-        await msg.edit("📦 **Đang đóng gói...**")
+        await msg.edit(f"📦 **Đang đóng gói...**\n({log_2fa})")
         
-        # 5. NEN FILE ZIP
-        # Luu file zip ra ngoai voi ten CHUAN (Khong co timestamp)
-        # VD: temp_process/+84123.zip
+        # NEN ZIP
         zip_output_path = f"temp_process/{session_name}"
-        
-        shutil.make_archive(
-            zip_output_path, 
-            'zip', 
-            root_dir=work_dir 
-        )
-        
+        shutil.make_archive(zip_output_path, 'zip', root_dir=work_dir)
         final_zip_file = zip_output_path + ".zip"
         
         await msg.edit("⬆️ **Đang tải lên...**")
         
-        # Gui file
         await bot.send_file(
             event.chat_id,
             final_zip_file,
-            caption=f"✅ **Xong!**\n📂 Folder: `{session_name}`",
+            caption=f"✅ **Xong!**\n📂 Folder: `{session_name}`\n🔐 {log_2fa}",
             force_document=True
         )
         
@@ -145,12 +160,11 @@ async def convert_process(event, downloaded_path):
 
     except Exception as e:
         if "SOCKS" in str(e) or "Connection" in str(e):
-             await msg.edit(f"❌ **Lỗi Proxy:** Mạng chậm, thử lại sau.")
+             await msg.edit(f"❌ **Lỗi Proxy:** Mạng chậm.")
         else:
              await msg.edit(f"❌ **Lỗi:** `{str(e)}`")
     
     finally:
-        # Don rac ngay lap tuc de tranh luu file thua
         try:
             if os.path.exists(work_dir): shutil.rmtree(work_dir)
             if os.path.exists(final_zip_file): os.remove(final_zip_file)
@@ -171,7 +185,7 @@ async def handler(event):
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond("🛠 **Bot Convert TData**\nChế độ Clean Name: ON")
+    await event.respond(f"🛠 **Bot Convert TData V5**\n✅ Auto Set 2FA: `{DEFAULT_2FA_PASS}`\n✅ Auto Create Note .txt")
 
 if __name__ == '__main__':
     keep_alive()
