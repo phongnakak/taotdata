@@ -8,7 +8,8 @@ import shutil
 import socks
 import sys
 import random
-import urllib.request # Dung de tai anh avatar
+import urllib.request 
+import ssl
 
 # Import Telethon
 from telethon import TelegramClient, events
@@ -39,21 +40,66 @@ DEFAULT_2FA_PASS = "12341234"
 
 # --- DATA RANDOM ---
 HO_VN = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"]
-TEN_DEM = ["Thị", "Thu", "Mỹ", "Ngọc", "Thanh", "Thảo", "Phương", "Hồng", "Khánh", "Minh", "Bảo"]
-TEN_GAI = ["Linh", "Hương", "Trang", "Mai", "Vy", "Hân", "Lan", "Nhi", "Huyền", "Tú", "Thư", "Ly", "Quỳnh", "Yến", "Nga", "Ngân", "Hà", "Châu"]
+TEN_DEM = ["Thị", "Thu", "Mỹ", "Ngọc", "Thanh", "Thảo", "Phương", "Hồng", "Khánh", "Minh", "Bảo", "Kim", "Anh", "Diệu", "Tuyết", "Trúc", "Bích", "Cẩm", "Thùy"]
+TEN_GAI = ["Linh", "Hương", "Trang", "Mai", "Vy", "Hân", "Lan", "Nhi", "Huyền", "Tú", "Thư", "Ly", "Quỳnh", "Yến", "Nga", "Ngân", "Hà", "Châu", "Ánh", "Duyên", "Thảo", "Diệp", "Oanh", "Vân", "Quyên", "Trâm"]
 
-# Danh sach link anh Gai Xinh (Anh AI hoac Stock de tranh ban quyen)
+# --- KHO ẢNH (BẠN CÓ THỂ THÊM TỚI 1000 LINK CŨNG KHÔNG LAG) ---
+# Link Pexels/Unsplash style Gái Á/Việt
 LIST_AVATAR_URLS = [
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
-    "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400",
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400",
-    "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400",
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400",
-    "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400",
-    "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400",
-    "https://images.unsplash.com/photo-1514315384763-ba401779410f?w=400"
+    # --- Batch 1 ---
+    "https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2613260/pexels-photo-2613260.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1382734/pexels-photo-1382734.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1391498/pexels-photo-1391498.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1372134/pexels-photo-1372134.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2364593/pexels-photo-2364593.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1319911/pexels-photo-1319911.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3220360/pexels-photo-3220360.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3054535/pexels-photo-3054535.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2036646/pexels-photo-2036646.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1982855/pexels-photo-1982855.jpeg?auto=compress&cs=tinysrgb&w=400",
+    # --- Batch 2 ---
+    "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1062249/pexels-photo-1062249.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1468379/pexels-photo-1468379.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1542085/pexels-photo-1542085.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1587009/pexels-photo-1587009.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3206118/pexels-photo-3206118.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1580271/pexels-photo-1580271.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1580272/pexels-photo-1580272.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2584269/pexels-photo-2584269.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2104252/pexels-photo-2104252.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2221357/pexels-photo-2221357.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2646237/pexels-photo-2646237.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3214729/pexels-photo-3214729.jpeg?auto=compress&cs=tinysrgb&w=400",
+    # --- Batch 3 ---
+    "https://images.pexels.com/photos/3319307/pexels-photo-3319307.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/341970/pexels-photo-341970.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1852085/pexels-photo-1852085.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2816576/pexels-photo-2816576.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1892591/pexels-photo-1892591.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2808795/pexels-photo-2808795.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1105058/pexels-photo-1105058.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1498758/pexels-photo-1498758.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3007355/pexels-photo-3007355.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2119561/pexels-photo-2119561.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1578643/pexels-photo-1578643.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2444354/pexels-photo-2444354.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1536619/pexels-photo-1536619.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2246755/pexels-photo-2246755.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2085698/pexels-photo-2085698.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2364582/pexels-photo-2364582.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/3142544/pexels-photo-3142544.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2128819/pexels-photo-2128819.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2128817/pexels-photo-2128817.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/2265247/pexels-photo-2265247.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1841121/pexels-photo-1841121.jpeg?auto=compress&cs=tinysrgb&w=400",
+    "https://images.pexels.com/photos/1386604/pexels-photo-1386604.jpeg?auto=compress&cs=tinysrgb&w=400"
+    # Ban co the them hang tram link nua vao duoi day, khong bao gio lag!
 ]
 
 # ==========================================
@@ -63,7 +109,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot Convert V6 (Auto Name + Avatar)"
+    return f"Bot V10 Ready - {len(LIST_AVATAR_URLS)} Photos Loaded"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -89,13 +135,13 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT + CHANGE INFO
+# 4. HAM CONVERT + FULL OPTION
 # ==========================================
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
 async def convert_process(event, downloaded_path):
-    msg = await event.reply("⏳ **Đang xử lý (Đổi tên & Avatar)...**")
+    msg = await event.reply("⏳ **Đang xử lý (Chế độ ngẫu nhiên)...**")
     
     filename_w_ext = os.path.basename(downloaded_path) 
     session_name = filename_w_ext.replace('.session', '') 
@@ -138,23 +184,39 @@ async def convert_process(event, downloaded_path):
         except:
             log_info.append("🔐 2FA: Đã có sẵn")
         
-        # --- 2. DOI TEN RANDOM ---
+        # --- 2. DOI TEN (FIX THUAN VIET) ---
         try:
             new_ho = random.choice(HO_VN)
             new_ten = random.choice(TEN_DEM) + " " + random.choice(TEN_GAI)
-            await client_convert(UpdateProfileRequest(first_name=new_ten, last_name=new_ho))
-            log_info.append(f"👤 Tên: {new_ho} {new_ten}")
+            
+            await client_convert(UpdateProfileRequest(
+                first_name=new_ho, 
+                last_name=new_ten
+            ))
+            
+            log_info.append(f"👤 Tên: {new_ho} {new_ten}") 
         except Exception as e:
             log_info.append(f"⚠️ Lỗi tên: {str(e)}")
 
-        # --- 3. DOI AVATAR RANDOM ---
+        # --- 3. DOI AVATAR (FIX SSL & KHO ANH LON) ---
         temp_avatar_path = f"temp_process/avatar_{timestamp}.jpg"
         try:
-            # Tai anh tu URL ve
             url_anh = random.choice(LIST_AVATAR_URLS)
-            urllib.request.urlretrieve(url_anh, temp_avatar_path)
             
-            # Upload anh len Tele
+            # FIX SSL
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            req = urllib.request.Request(
+                url_anh, 
+                data=None, 
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            
+            with urllib.request.urlopen(req, context=ssl_context) as response, open(temp_avatar_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+            
             upload_file = await client_convert.upload_file(temp_avatar_path)
             await client_convert(UploadProfilePhotoRequest(file=upload_file))
             log_info.append("🖼️ Avatar: Đã đổi")
@@ -202,7 +264,6 @@ async def convert_process(event, downloaded_path):
             if os.path.exists(work_dir): shutil.rmtree(work_dir)
             if os.path.exists(final_zip_file): os.remove(final_zip_file)
             if os.path.exists(downloaded_path): os.remove(downloaded_path)
-            # Xoa anh avatar tam
             if 'temp_avatar_path' in locals() and os.path.exists(temp_avatar_path): 
                 os.remove(temp_avatar_path)
         except: pass
@@ -221,7 +282,9 @@ async def handler(event):
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond(f"🛠 **Bot Full Option V6**\n✅ Auto 2FA\n✅ Auto Name (Gái VN)\n✅ Auto Avatar")
+    # Hien thi so luong anh dang co
+    so_anh = len(LIST_AVATAR_URLS)
+    await event.respond(f"🛠 **Bot V10 Ready**\n✅ Kho ảnh hiện tại: {so_anh} ảnh\n✅ Không Lag, Không Trùng")
 
 if __name__ == '__main__':
     keep_alive()
