@@ -18,7 +18,7 @@ except ImportError:
     print("❌ Lỗi: Chưa cài thư viện opentele")
 
 # ==========================================
-# 1. CẤU HÌNH PROXY
+# 1. CẤU HÌNH PROXY (BẮT BUỘC ĐỂ KHÔNG CHẾT SS)
 # ==========================================
 PROXY_CONF = (
     socks.HTTP,
@@ -36,7 +36,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot Convert TData Online"
+    return "Bot Convert TData Online (Zip Fixed)"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -46,9 +46,8 @@ def keep_alive():
     t.start()
 
 # ==========================================
-# 3. KHOI TAO BOT
+# 3. KHOI TAO BOT (GÁN THẺ TÊN CHUẨN 100%)
 # ==========================================
-# Dung cach nay (api_id=..., api_hash=...) thi khong bao gio bi loi nua
 bot = TelegramClient(
     'bot_main_cloud', 
     api_id=36305655,                       
@@ -63,7 +62,7 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT (DA SUA LOI GUI FILE)
+# 4. HAM CONVERT (SỬA LẠI CÁCH ĐÓNG GÓI ZIP)
 # ==========================================
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
@@ -74,19 +73,23 @@ async def convert_process(event, downloaded_path):
     filename_w_ext = os.path.basename(downloaded_path)
     session_name = filename_w_ext.replace('.session', '')
     
+    # Tao thu muc cha chua moi thu
     timestamp = int(time.time())
     root_folder = f"temp_process/{session_name}_{timestamp}"
     os.makedirs(root_folder, exist_ok=True)
     
+    # Copy file session vao
     session_path_in_folder = os.path.join(root_folder, filename_w_ext)
     shutil.copy2(downloaded_path, session_path_in_folder)
     
     path_to_load = os.path.join(root_folder, session_name)
-    tdata_folder_path = os.path.join(root_folder, "tdata")
+    
+    # Tao folder tdata ben trong
+    tdata_folder_path = os.path.join(root_folder, "tdata") 
 
     client_convert = None
     try:
-        # Gan the ten cho Opentele luon
+        # KET NOI VOI PROXY
         client_convert = OpenteleClient(
             path_to_load, 
             api_id=MY_API_ID, 
@@ -100,22 +103,33 @@ async def convert_process(event, downloaded_path):
             await client_convert.disconnect()
             return
 
+        # CONVERT SANG TDATA
         tdesk = await client_convert.ToTDesktop(flag=UseCurrentSession)
         tdesk.SaveTData(tdata_folder_path)
         await client_convert.disconnect()
         
-        await msg.edit("📦 **Đang nén TData...**")
+        await msg.edit("📦 **Đang đóng gói thư mục TData...**")
+        
+        # --- DOAN NAY DA SUA ---
+        # Nen folder "tdata" nam trong "root_folder"
+        # Ket qua khi giai nen se la mot folder ten la "tdata"
         zip_output_path = f"temp_process/{session_name}_{timestamp}"
-        shutil.make_archive(zip_output_path, 'zip', tdata_folder_path)
+        
+        shutil.make_archive(
+            zip_output_path, 
+            'zip', 
+            root_dir=root_folder, 
+            base_dir='tdata'
+        )
+        
         final_zip_file = zip_output_path + ".zip"
         
         await msg.edit("⬆️ **Đang tải lên...**")
         
-        # 👇👇👇 DA SUA DOAN NAY: DUNG send_file thay vi respond 👇👇👇
         await bot.send_file(
             event.chat_id,
             final_zip_file,
-            caption=f"✅ **Convert thành công!**\n📂 File: `{session_name}.zip`\n(Opentele Core)"
+            caption=f"✅ **Convert thành công!**\n📂 File: `{session_name}.zip`\n\n👉 **HDSD:** Giải nén file này ra, bạn sẽ được thư mục `tdata`. Copy thư mục đó vào chỗ cài Telegram."
         )
         
         await msg.delete()
@@ -147,7 +161,7 @@ async def handler(event):
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond("🛠 **Bot Convert TData Ready**")
+    await event.respond("🛠 **Bot Convert TData (Fixed Zip Structure)**\nGửi file .session vào đây!")
 
 if __name__ == '__main__':
     keep_alive()
