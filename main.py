@@ -50,18 +50,20 @@ def keep_alive():
 # ==========================================
 # 3. KHOI TAO BOT
 # ==========================================
-api_id = 36305655
-api_hash = '58c19740ea1f5941e5847c0b3944f41d'
-bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU' # <--- TOKEN CUA BAN
+# 3. KHOI TAO BOT
+# ==========================================
+api_id = 36305655   # Day la so
+api_hash = '58c19740ea1f5941e5847c0b3944f41d'  # Day la chu (co dau nhay)
+bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU' # Token cua ban
 
 # Tao thu muc tam
 if not os.path.exists('sessions'): os.makedirs('sessions')
 if not os.path.exists('temp_process'): os.makedirs('temp_process')
 
 logging.basicConfig(level=logging.INFO)
-bot = TelegramClient('bot_main_cloud', api_id, api_hash)
 
-# ==========================================
+# QUAN TRONG: Phai dung thu tu (api_id truoc, api_hash sau)
+bot = TelegramClient('bot_main_cloud', api_id, api_hash)
 # 4. HAM CONVERT (LOGIC TU CODE CUA BAN)
 # ==========================================
 async def convert_process(event, downloaded_path):
@@ -167,3 +169,4 @@ if __name__ == '__main__':
     print("--- BOT STARTED ---")
     bot.start(bot_token=bot_token)
     bot.run_until_disconnected()
+
