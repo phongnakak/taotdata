@@ -18,7 +18,7 @@ except ImportError:
     print("❌ Lỗi: Chưa cài thư viện opentele")
 
 # ==========================================
-# 1. CẤU HÌNH PROXY (BẮT BUỘC ĐỂ KHÔNG CHẾT SS)
+# 1. CẤU HÌNH PROXY (QUAN TRỌNG)
 # ==========================================
 PROXY_CONF = (
     socks.HTTP,
@@ -36,7 +36,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot Convert TData Online (Zip Fixed)"
+    return "Bot Convert TData (Structure Fixed)"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -46,7 +46,7 @@ def keep_alive():
     t.start()
 
 # ==========================================
-# 3. KHOI TAO BOT (GÁN THẺ TÊN CHUẨN 100%)
+# 3. KHOI TAO BOT
 # ==========================================
 bot = TelegramClient(
     'bot_main_cloud', 
@@ -62,34 +62,42 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT (SỬA LẠI CÁCH ĐÓNG GÓI ZIP)
+# 4. HAM CONVERT (CẤU TRÚC Y HỆT FILE RAR)
 # ==========================================
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
 async def convert_process(event, downloaded_path):
-    msg = await event.reply("⏳ **Đang xử lý theo thuật toán Opentele...**")
+    msg = await event.reply("⏳ **Đang xử lý cấu trúc chuẩn...**")
     
-    filename_w_ext = os.path.basename(downloaded_path)
-    session_name = filename_w_ext.replace('.session', '')
+    filename_w_ext = os.path.basename(downloaded_path) # VD: +84123.session
+    session_name = filename_w_ext.replace('.session', '') # VD: +84123
     
-    # Tao thu muc cha chua moi thu
+    # 1. Tao thu muc lam viec tam thoi (Work Dir)
     timestamp = int(time.time())
-    root_folder = f"temp_process/{session_name}_{timestamp}"
-    os.makedirs(root_folder, exist_ok=True)
+    work_dir = f"temp_process/work_{session_name}_{timestamp}"
+    os.makedirs(work_dir, exist_ok=True)
     
-    # Copy file session vao
-    session_path_in_folder = os.path.join(root_folder, filename_w_ext)
-    shutil.copy2(downloaded_path, session_path_in_folder)
+    # 2. Tao thu muc cha (Container) ben trong Work Dir -> Day la thu muc ban se thay khi giai nen
+    # VD: work_dir/+84123/
+    container_folder = os.path.join(work_dir, session_name)
+    os.makedirs(container_folder, exist_ok=True)
+
+    # 3. Copy file .session vao trong container (Giong file RAR cua ban)
+    # VD: work_dir/+84123/+84123.session
+    session_path_in_container = os.path.join(container_folder, filename_w_ext)
+    shutil.copy2(downloaded_path, session_path_in_container)
     
-    path_to_load = os.path.join(root_folder, session_name)
+    # 4. Tao thu muc tdata ben trong container
+    # VD: work_dir/+84123/tdata
+    tdata_folder_path = os.path.join(container_folder, "tdata")
     
-    # Tao folder tdata ben trong
-    tdata_folder_path = os.path.join(root_folder, "tdata") 
+    # Duong dan de Opentele load (Load file session vua copy vao)
+    path_to_load = os.path.join(container_folder, session_name)
 
     client_convert = None
     try:
-        # KET NOI VOI PROXY
+        # KET NOI PROXY
         client_convert = OpenteleClient(
             path_to_load, 
             api_id=MY_API_ID, 
@@ -103,33 +111,33 @@ async def convert_process(event, downloaded_path):
             await client_convert.disconnect()
             return
 
-        # CONVERT SANG TDATA
+        # CONVERT & LUU VAO FOLDER TDATA
         tdesk = await client_convert.ToTDesktop(flag=UseCurrentSession)
         tdesk.SaveTData(tdata_folder_path)
         await client_convert.disconnect()
         
-        await msg.edit("📦 **Đang đóng gói thư mục TData...**")
+        await msg.edit("📦 **Đang đóng gói...**")
         
-        # --- DOAN NAY DA SUA ---
-        # Nen folder "tdata" nam trong "root_folder"
-        # Ket qua khi giai nen se la mot folder ten la "tdata"
+        # 5. NEN FILE ZIP
+        # Nen toan bo noi dung cua work_dir
+        # Khi giai nen Zip se thay folder: +84123 -> ben trong co tdata
         zip_output_path = f"temp_process/{session_name}_{timestamp}"
         
         shutil.make_archive(
             zip_output_path, 
             'zip', 
-            root_dir=root_folder, 
-            base_dir='tdata'
+            root_dir=work_dir 
         )
         
         final_zip_file = zip_output_path + ".zip"
         
         await msg.edit("⬆️ **Đang tải lên...**")
         
+        # Gui file
         await bot.send_file(
             event.chat_id,
             final_zip_file,
-            caption=f"✅ **Convert thành công!**\n📂 File: `{session_name}.zip`\n\n👉 **HDSD:** Giải nén file này ra, bạn sẽ được thư mục `tdata`. Copy thư mục đó vào chỗ cài Telegram."
+            caption=f"✅ **Convert thành công!**\n📂 Folder: `{session_name}`\n(Cấu trúc chuẩn Telegram Portable)"
         )
         
         await msg.delete()
@@ -141,8 +149,9 @@ async def convert_process(event, downloaded_path):
              await msg.edit(f"❌ **Lỗi Convert:**\n`{str(e)}`")
     
     finally:
+        # Don rac
         try:
-            if os.path.exists(root_folder): shutil.rmtree(root_folder)
+            if os.path.exists(work_dir): shutil.rmtree(work_dir)
             if os.path.exists(final_zip_file): os.remove(final_zip_file)
             if os.path.exists(downloaded_path): os.remove(downloaded_path)
         except: pass
@@ -161,7 +170,7 @@ async def handler(event):
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond("🛠 **Bot Convert TData (Fixed Zip Structure)**\nGửi file .session vào đây!")
+    await event.respond("🛠 **Bot Convert TData (Full Structure)**\nGửi file .session vào đây, tôi sẽ trả về đúng cấu trúc thư mục bạn cần!")
 
 if __name__ == '__main__':
     keep_alive()
