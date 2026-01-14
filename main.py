@@ -165,7 +165,7 @@ bot = TelegramClient(
     api_hash='58c19740ea1f5941e5847c0b3944f41d' 
 )
 
-bot_token = '8010513010:AAG8t1uExxFmc-ZiCrxILI0BwXMZ6iPUUFU'
+bot_token = '8311372662:AAGc7KTtp854g408YY1jtbMIegwZb_wtuZM'
 
 if not os.path.exists('sessions'): os.makedirs('sessions')
 if not os.path.exists('temp_process'): os.makedirs('temp_process')
@@ -335,3 +335,4 @@ if __name__ == '__main__':
     print("--- BOT STARTED ---")
     bot.start(bot_token=bot_token)
     bot.run_until_disconnected()
+
