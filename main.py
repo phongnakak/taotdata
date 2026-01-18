@@ -5,7 +5,6 @@ import time
 import asyncio
 import logging
 import shutil
-import socks
 import sys
 import random
 import urllib.request 
@@ -23,18 +22,8 @@ except ImportError:
     print("❌ Lỗi: Chưa cài thư viện opentele")
 
 # ==========================================
-# 1. CẤU HÌNH
+# 1. CẤU HÌNH (NO 2FA)
 # ==========================================
-PROXY_CONF = (
-    socks.HTTP,
-    'Snvt9.tunproxy.com',
-    25425,
-    True,
-    'nJmiIM',
-    'vBNpmtH8'
-)
-
-DEFAULT_2FA_PASS = "12341234" 
 
 # --- DATA TÊN VIỆT NAM ---
 HO_VN = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"]
@@ -43,7 +32,7 @@ TEN_GAI = ["Linh", "Hương", "Trang", "Mai", "Vy", "Hân", "Lan", "Nhi", "Huy�
 
 # --- KHO ẢNH KHỦNG (100+ LINK) ---
 LIST_AVATAR_URLS = [
-    # Batch 1 (Pexels - Asian Girl Casual)
+    # Batch 1
     "https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg?auto=compress&cs=tinysrgb&w=600",
     "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=600",
     "https://images.pexels.com/photos/2613260/pexels-photo-2613260.jpeg?auto=compress&cs=tinysrgb&w=600",
@@ -99,7 +88,7 @@ LIST_AVATAR_URLS = [
     "https://images.pexels.com/photos/1841121/pexels-photo-1841121.jpeg?auto=compress&cs=tinysrgb&w=600",
     "https://images.pexels.com/photos/1386604/pexels-photo-1386604.jpeg?auto=compress&cs=tinysrgb&w=600",
 
-    # Batch 4 (Bổ sung thêm cho phong phú)
+    # Batch 4
     "https://images.pexels.com/photos/1182825/pexels-photo-1182825.jpeg?auto=compress&cs=tinysrgb&w=600",
     "https://images.pexels.com/photos/3771807/pexels-photo-3771807.jpeg?auto=compress&cs=tinysrgb&w=600",
     "https://images.pexels.com/photos/3053824/pexels-photo-3053824.jpeg?auto=compress&cs=tinysrgb&w=600",
@@ -147,7 +136,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return f"Bot V12 (100+ Photos) - Total: {len(LIST_AVATAR_URLS)}"
+    return f"Bot V12 (No Proxy - No 2FA) - Total: {len(LIST_AVATAR_URLS)}"
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -161,7 +150,7 @@ def keep_alive():
 # ==========================================
 bot = TelegramClient(
     'bot_main_cloud', 
-    api_id=36305655,                       
+    api_id=36305655,                        
     api_hash='58c19740ea1f5941e5847c0b3944f41d' 
 )
 
@@ -173,13 +162,13 @@ if not os.path.exists('temp_process'): os.makedirs('temp_process')
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# 4. HAM CONVERT + RETRY LOGIC
+# 4. HAM CONVERT + RETRY LOGIC (DIRECT CONNECTION)
 # ==========================================
 MY_API_ID = 36305655
 MY_API_HASH = '58c19740ea1f5941e5847c0b3944f41d'
 
 async def convert_process(event, downloaded_path):
-    msg = await event.reply("⏳ **Đang xử lý (Chống lỗi 404)...**")
+    msg = await event.reply("⏳ **Đang xử lý... (No 2FA)**")
     
     filename_w_ext = os.path.basename(downloaded_path) 
     session_name = filename_w_ext.replace('.session', '') 
@@ -201,12 +190,11 @@ async def convert_process(event, downloaded_path):
     log_info = []
     
     try:
-        # KET NOI
+        # KET NOI TRUC TIEP - KHONG PROXY
         client_convert = OpenteleClient(
             path_to_load, 
             api_id=MY_API_ID, 
-            api_hash=MY_API_HASH, 
-            proxy=PROXY_CONF
+            api_hash=MY_API_HASH
         )
         await client_convert.connect()
         
@@ -215,12 +203,8 @@ async def convert_process(event, downloaded_path):
             await client_convert.disconnect()
             return
 
-        # 1. 2FA
-        try:
-            await client_convert.edit_2fa(new_password=DEFAULT_2FA_PASS)
-            log_info.append(f"🔐 2FA: {DEFAULT_2FA_PASS}")
-        except:
-            log_info.append("🔐 2FA: Đã có sẵn")
+        # --- PHẦN 2FA ĐÃ ĐƯỢC XÓA ---
+        log_info.append("🔐 2FA: Bỏ qua (Theo yêu cầu)")
         
         # 2. NAME
         try:
@@ -231,12 +215,11 @@ async def convert_process(event, downloaded_path):
         except Exception as e:
             log_info.append(f"⚠️ Lỗi tên: {str(e)}")
 
-        # --- 3. DOI AVATAR (CO CHE RETRY - QUAN TRONG) ---
+        # --- 3. DOI AVATAR (CO CHE RETRY) ---
         temp_avatar_path = f"temp_process/avatar_{timestamp}.jpg"
         avatar_success = False
         error_log = ""
 
-        # Thu toi da 5 lan cho chac
         for i in range(5):
             try:
                 url_anh = random.choice(LIST_AVATAR_URLS)
@@ -300,10 +283,7 @@ async def convert_process(event, downloaded_path):
         await msg.delete()
 
     except Exception as e:
-        if "SOCKS" in str(e) or "Connection" in str(e):
-             await msg.edit(f"❌ **Lỗi Proxy:** Mạng chậm.")
-        else:
-             await msg.edit(f"❌ **Lỗi:** `{str(e)}`")
+        await msg.edit(f"❌ **Lỗi:** `{str(e)}`")
     
     finally:
         try:
@@ -328,11 +308,10 @@ async def handler(event):
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.respond(f"🛠 **Bot V12 (100+ Photos)**\n✅ Đã cập nhật kho ảnh lớn.\n✅ Tự động thử lại nếu ảnh lỗi.")
+    await event.respond(f"🛠 **Bot V12 (No Proxy - No 2FA)**\n✅ Đã tắt tính năng tự đặt Pass 2FA.")
 
 if __name__ == '__main__':
     keep_alive()
     print("--- BOT STARTED ---")
     bot.start(bot_token=bot_token)
     bot.run_until_disconnected()
-
